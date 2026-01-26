@@ -295,7 +295,7 @@ func (m Model) View() string {
 		}
 
 	case stateDone:
-		s.WriteString(successStyle.Render(fmt.Sprintf("\n✓ 下载完成!\n\n")))
+		s.WriteString(successStyle.Render("\n✓ 下载完成!\n\n"))
 		s.WriteString(statusStyle.Render(fmt.Sprintf("  文件已保存到: %s\n", m.message)))
 		s.WriteString(helpStyle.Render("\n  按 Enter 或 q 退出"))
 
