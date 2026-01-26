@@ -1,0 +1,66 @@
+# GoReleaser 配置文件
+# 用于自动化构建和发布到 GitHub Releases
+# 配合 Homebrew 使用
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: qiniu-logs
+    main: .
+    binary: qiniu-logs
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/rela/qiniu-logs/cmd.version={{.Version}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: qiniu-logs
+    repository:
+      owner: rela
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/rela/qiniu-logs"
+    description: "七牛云日志文件下载工具 - 基于用户ID搜索和下载日志文件"
+    license: "MIT"
+    install: |
+      bin.install "qiniu-logs"
+    test: |
+      system "#{bin}/qiniu-logs", "--version"
