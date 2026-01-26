@@ -16,25 +16,43 @@
 ### 通过 Homebrew（推荐）
 
 ```bash
-# 添加 tap
-brew tap rela/tap
-
-# 安装
+# 添加 tap 并安装
+brew tap Nevermore130/rela-qiniu-logs
 brew install qiniu-logs
+
+# 或一行命令安装
+brew install Nevermore130/rela-qiniu-logs/qiniu-logs
+```
+
+### 下载预编译版本
+
+从 [Releases](https://github.com/Nevermore130/rela-qiniu-logs/releases) 页面下载适合您系统的版本：
+
+```bash
+# macOS (Apple Silicon)
+curl -LO https://github.com/Nevermore130/rela-qiniu-logs/releases/latest/download/qiniu-logs_darwin_arm64.tar.gz
+tar -xzf qiniu-logs_darwin_arm64.tar.gz
+sudo mv qiniu-logs /usr/local/bin/
+
+# macOS (Intel)
+curl -LO https://github.com/Nevermore130/rela-qiniu-logs/releases/latest/download/qiniu-logs_darwin_amd64.tar.gz
+tar -xzf qiniu-logs_darwin_amd64.tar.gz
+sudo mv qiniu-logs /usr/local/bin/
+
+# Linux (AMD64)
+curl -LO https://github.com/Nevermore130/rela-qiniu-logs/releases/latest/download/qiniu-logs_linux_amd64.tar.gz
+tar -xzf qiniu-logs_linux_amd64.tar.gz
+sudo mv qiniu-logs /usr/local/bin/
 ```
 
 ### 从源码安装
 
 ```bash
-git clone https://github.com/rela/qiniu-logs.git
-cd qiniu-logs
+git clone https://github.com/Nevermore130/rela-qiniu-logs.git
+cd rela-qiniu-logs
 make build
-make install-local
+sudo mv qiniu-logs /usr/local/bin/
 ```
-
-### 下载预编译版本
-
-从 [Releases](https://github.com/rela/qiniu-logs/releases) 页面下载适合您系统的版本。
 
 ## 配置
 
@@ -138,11 +156,14 @@ make release
 
 ```bash
 # 打标签并推送
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
-GitHub Actions 会自动构建并发布到 Releases。
+GitHub Actions 会自动：
+1. 构建多平台二进制文件（macOS/Linux/Windows）
+2. 上传到 GitHub Releases
+3. 更新 Homebrew Formula
 
 ## 许可证
 
