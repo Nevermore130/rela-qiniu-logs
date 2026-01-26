@@ -53,14 +53,19 @@ changelog:
 brews:
   - name: qiniu-logs
     repository:
-      owner: rela
-      name: homebrew-tap
+      owner: Nevermore130
+      name: homebrew-rela-qiniu-logs
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/rela/qiniu-logs"
+    homepage: "https://github.com/Nevermore130/rela-qiniu-logs"
     description: "七牛云日志文件下载工具 - 基于用户ID搜索和下载日志文件"
     license: "MIT"
     install: |
       bin.install "qiniu-logs"
     test: |
       system "#{bin}/qiniu-logs", "--version"
+    caveats: |
+      首次使用前，请运行初始化配置:
+        qiniu-logs init
+
+      配置文件位置: ~/.qiniu-logs/config.yaml
