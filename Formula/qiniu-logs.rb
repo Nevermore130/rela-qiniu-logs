@@ -10,31 +10,31 @@
 
 class QiniuLogs < Formula
   desc "七牛云日志文件下载工具 - 基于用户ID搜索和下载日志文件"
-  homepage "https://github.com/rela/qiniu-logs"
-  version "0.1.0"
+  homepage "https://github.com/Nevermore130/rela-qiniu-logs"
+  version "0.1.3"
   license "MIT"
 
   # 根据实际发布地址修改
   on_macos do
     on_intel do
-      url "https://github.com/rela/qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_darwin_amd64.tar.gz"
+      url "https://github.com/Nevermore130/rela-qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_darwin_amd64.tar.gz"
       # sha256 "填入实际的 SHA256 校验和"
     end
 
     on_arm do
-      url "https://github.com/rela/qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_darwin_arm64.tar.gz"
+      url "https://github.com/Nevermore130/rela-qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_darwin_arm64.tar.gz"
       # sha256 "填入实际的 SHA256 校验和"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/rela/qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_linux_amd64.tar.gz"
+      url "https://github.com/Nevermore130/rela-qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_linux_amd64.tar.gz"
       # sha256 "填入实际的 SHA256 校验和"
     end
 
     on_arm do
-      url "https://github.com/rela/qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_linux_arm64.tar.gz"
+      url "https://github.com/Nevermore130/rela-qiniu-logs/releases/download/v#{version}/qiniu-logs_#{version}_linux_arm64.tar.gz"
       # sha256 "填入实际的 SHA256 校验和"
     end
   end
