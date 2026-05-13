@@ -84,7 +84,57 @@ metadata:
    ```bash
    test -f ~/.qiniu-logs/config.yaml && qiniu-logs config || echo NO_CONFIG
    ```
-   若 `NO_CONFIG`：让用户**自己交互式跑** `qiniu-logs init`（需要输入 AK / SK，不要尝试代用户填）。
+
+   若 `NO_CONFIG`，**AI 自己驱动初始化**，流程：用 agent 的"向用户提问"原语（Claude Code: `AskUserQuestion`；Codex / Qoder: 等价的交互输入）**逐项收集**字段 → 用 agent 的"文件写入"原语直接落到 `~/.qiniu-logs/config.yaml` → `qiniu-logs config` 验证。
+
+   ### 2.1 向用户收集的 6 个字段
+
+   | 字段 | 必填 | 提问示例 | 备注 |
+   |---|---|---|---|
+   | `access_key` | ✅ | "请输入七牛 Access Key" | 敏感凭证，**收到即写文件，不在后续总结/对话里复述** |
+   | `secret_key` | ✅ | "请输入七牛 Secret Key" | 同上 |
+   | `bucket` | ✅ | "Bucket 名称（默认 `rela-debug-log`）" | 给默认值时让用户能 Enter 接受 |
+   | `domain` | ✅ | "CDN 域名（不含 `https://`）" | 写入时也不带 scheme |
+   | `path_prefix` | ❌ | "文件路径前缀（留空则按 `{user_id}/` 搜索）" | 空字符串合法 |
+   | `private` | ❌ | "是否私有空间？[Y/n]" | 默认 `true`，仅 `n / no` 视作 false |
+
+   ### 2.2 写文件方式（务必）
+
+   - ✅ 用 agent 自带的 **file-write 工具**直接写 YAML（Claude Code: `Write` 工具；其它 agent 类似）
+   - ⛔ **不要**用 `printf "..." | qiniu-logs init` 之类 stdin pipe —— AK/SK 会落进 `ps`、会话日志、潜在的命令历史
+   - ⛔ **不要**把 AK/SK 拼进 shell 命令的 argv（同上原因）
+   - ⛔ **不要**自己猜 AK/SK 或从环境变量、其它配置文件里"借"
+
+   ### 2.3 YAML 模板
+
+   ```yaml
+   qiniu:
+     access_key: "<USER_AK>"
+     secret_key: "<USER_SK>"
+     bucket: "<USER_BUCKET>"
+     domain: "<USER_DOMAIN>"
+     path_prefix: "<USER_PATH_PREFIX 或空字符串>"
+     use_https: true
+     private: <true|false>
+   ```
+
+   ### 2.4 写完立刻收紧权限并验证
+
+   ```bash
+   chmod 700 ~/.qiniu-logs
+   chmod 600 ~/.qiniu-logs/config.yaml
+   qiniu-logs config
+   ```
+
+   `qiniu-logs config` 会脱敏只显示 AK/SK 前 4 位；看到 6 个字段非空即就绪。若报 `配置错误: X 不能为空`，回到 2.1 补齐相应字段。
+
+   ### 2.5 退路：用户想自己交互填
+
+   如果用户拒绝把 AK/SK 给 AI（合理的安全偏好），让用户自行运行交互式 CLI：
+   ```bash
+   qiniu-logs init
+   ```
+   等用户跑完，AI 再从 2 节开头重新检查 `~/.qiniu-logs/config.yaml`。
 
 3. **拿到 `user_id`？**
    AI 不要凭空猜测 uid。如果用户描述里没有具体数字，回问一次。
