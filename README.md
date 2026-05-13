@@ -165,6 +165,34 @@ GitHub Actions 会自动：
 2. 上传到 GitHub Releases
 3. 更新 Homebrew Formula
 
+## AI / Claude Code Skill
+
+本仓库自带一个 Claude Code skill（`skill/SKILL.md`），装载之后 AI agent 会在你说「下载用户 X 最近 24h 的日志」这类需求时，自动知道用本工具并按 `list → download` 流程跑。
+
+### 安装（前提：已 `brew install qiniu-logs` 且跑过一次 `qiniu-logs init`）
+
+```bash
+git clone https://github.com/Nevermore130/rela-qiniu-logs.git  # 已 clone 可跳过
+cd rela-qiniu-logs
+make install-skill     # 会把 skill/ 符号链接到 ~/.claude/skills/qiniu-logs/
+```
+
+打开新的 Claude Code 会话即可生效。卸载：
+
+```bash
+make uninstall-skill
+```
+
+### Skill 教给 AI 的能力范围
+
+- ✅ `qiniu-logs list <uid> --last 24h / --from / --to / --limit`
+- ✅ `qiniu-logs download <file_key> -o ./logs`
+- ✅ 输出解析、常见工作流、故障处理
+- ⛔ 不驱动 `qiniu-logs search`（TUI 模式，AI 无法操作键盘）
+- ⛔ 不替代用户输入 AK/SK；`qiniu-logs init` 始终由用户交互完成
+
+更多细节直接读 [`skill/SKILL.md`](./skill/SKILL.md)。
+
 ## 许可证
 
 MIT License

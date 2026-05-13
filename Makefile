@@ -1,4 +1,4 @@
-.PHONY: build clean install test release run
+.PHONY: build clean install test release run install-skill uninstall-skill
 
 BINARY_NAME=qiniu-logs
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0")
@@ -58,3 +58,23 @@ release-darwin:
 install-local: build
 	sudo cp $(BINARY_NAME) /usr/local/bin/
 	@echo "Installed to /usr/local/bin/$(BINARY_NAME)"
+
+# 把 skill/ 链接到 ~/.claude/skills/qiniu-logs/，供 Claude Code 等 AI agent 发现
+install-skill:
+	@mkdir -p $(HOME)/.claude/skills
+	@if [ -e $(HOME)/.claude/skills/qiniu-logs ] && [ ! -L $(HOME)/.claude/skills/qiniu-logs ]; then \
+		echo "❌ $(HOME)/.claude/skills/qiniu-logs 已存在且不是符号链接，拒绝覆盖。手动备份后重试。"; \
+		exit 1; \
+	fi
+	@rm -f $(HOME)/.claude/skills/qiniu-logs
+	@ln -s $(CURDIR)/skill $(HOME)/.claude/skills/qiniu-logs
+	@echo "✓ Skill installed: $(HOME)/.claude/skills/qiniu-logs -> $(CURDIR)/skill"
+	@echo "  打开新的 Claude Code 会话即可被识别为 qiniu-logs skill"
+
+uninstall-skill:
+	@if [ -L $(HOME)/.claude/skills/qiniu-logs ]; then \
+		rm $(HOME)/.claude/skills/qiniu-logs; \
+		echo "✓ Skill removed: $(HOME)/.claude/skills/qiniu-logs"; \
+	else \
+		echo "Skill 未安装（$(HOME)/.claude/skills/qiniu-logs 不存在或非符号链接）"; \
+	fi
