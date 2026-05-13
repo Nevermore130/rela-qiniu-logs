@@ -105,20 +105,26 @@ func (c *Client) ListFiles(ctx context.Context, userID string, opts ListOptions)
 	return files, nil
 }
 
-func (c *Client) GetDownloadURL(key string) string {
+// GetPublicURL returns the unsigned `scheme://domain/key` URL.
+// For private buckets this alone is not enough to fetch the object;
+// it is meant for display/identification. DownloadFile re-signs via
+// GetDownloadURL at the moment of fetch.
+func (c *Client) GetPublicURL(key string) string {
 	scheme := "https"
 	if !c.cfg.UseHTTPS {
 		scheme = "http"
 	}
+	return fmt.Sprintf("%s://%s/%s", scheme, c.cfg.Domain, key)
+}
 
-	publicURL := fmt.Sprintf("%s://%s/%s", scheme, c.cfg.Domain, key)
-
+// GetDownloadURL returns a URL that can actually fetch the object:
+// signed (1h TTL) for private buckets, bare for public.
+func (c *Client) GetDownloadURL(key string) string {
 	if c.cfg.Private {
 		deadline := time.Now().Add(time.Hour).Unix()
 		return storage.MakePrivateURL(c.mac, c.cfg.Domain, key, deadline)
 	}
-
-	return publicURL
+	return c.GetPublicURL(key)
 }
 
 func (c *Client) DownloadFile(ctx context.Context, key string, destPath string, progressFn func(downloaded, total int64)) error {

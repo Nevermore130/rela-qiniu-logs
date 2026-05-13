@@ -168,22 +168,23 @@ metadata:
 
 ## `list` 输出解析
 
-每条文件占 **3 行**（v0.2.1+），第 3 行是根据配置 `domain` 拼出的下载链接（私有桶自动带 1 小时有效的签名）：
+每条文件占 **3 行**（v0.2.2+），第 3 行是裸的 `https://domain/key`——**不含签名 token**，仅作展示与识别用途。私有桶真正下载时由 `qiniu-logs download <key>` 在请求时刻就地签名。
 
 ```
 时间范围: 2026-05-12 17:00:00 ~ (不限)
 找到 3 个日志文件:
-(私有空间，下载链接含签名，1 小时后失效)
 
   1. logs/12345/app-2026-05-13.log
      大小: 4.20 MB | 时间: 2026-05-13 15:04:05
-     下载: https://cdn.example.com/logs/12345/app-2026-05-13.log?e=1747000000&token=ak:sig
+     URL:  https://cdn.example.com/logs/12345/app-2026-05-13.log
   2. logs/12345/err-2026-05-13.log
      大小: 18.40 KB | 时间: 2026-05-13 14:55:11
-     下载: https://cdn.example.com/logs/12345/err-2026-05-13.log?e=...&token=...
+     URL:  https://cdn.example.com/logs/12345/err-2026-05-13.log
   3. logs/12345/app-2026-05-12.log
      大小: 3.81 MB | 时间: 2026-05-12 23:12:00
-     下载: https://cdn.example.com/logs/12345/app-2026-05-12.log?e=...&token=...
+     URL:  https://cdn.example.com/logs/12345/app-2026-05-12.log
+
+(私有空间：URL 直接打开会 401，请用 'qiniu-logs download <key>' 下载——会自动签名)
 ```
 
 提取需要的字段：
@@ -193,21 +194,21 @@ metadata:
 qiniu-logs list 12345 --last 24h \
   | awk '/^[[:space:]]*[0-9]+\./ { print $2 }'
 
-# 提取下载 URL（每条第 3 行）
+# 提取 URL（每条第 3 行）
 qiniu-logs list 12345 --last 24h \
-  | awk '/^[[:space:]]*下载: / { print $2 }'
+  | awk '/^[[:space:]]*URL:/ { print $2 }'
 
-# key 与 URL 对齐成行（用 paste）
+# key 与 URL 对齐成行
 qiniu-logs list 12345 --last 24h \
-  | awk '/^[[:space:]]*[0-9]+\./ { k=$2; next } /^[[:space:]]*下载: / { print k"\t"$2 }'
+  | awk '/^[[:space:]]*[0-9]+\./ { k=$2; next } /^[[:space:]]*URL:/ { print k"\t"$2 }'
 ```
 
 注意：
 - 首行 `找到 N 个日志文件` 给出**总数**，可 `head -1 | grep -oE '[0-9]+'` 抽取
 - `时间范围` 行只在指定 `--from/--to/--last` 时出现
-- `(私有空间，下载链接含签名，1 小时后失效)` 行只在配置 `private: true` 时出现
-- 私有桶的下载 URL 是**时间敏感凭证**：AI 不应该把这种 URL 落到长期记忆、日志、PR 描述里；若需共享，给 key 让对方再走 `qiniu-logs download <key>`
-- 空结果输出 `未找到用户 <uid> 的日志文件`，应据此向用户回退（uid 错？时间窗太窄？）
+- 末尾私有空间提示行只在配置 `private: true` 时出现
+- URL 是裸地址（无 `?e=...&token=...`），落到长期记忆/日志/PR 不会泄露下载凭证；私有桶 fetch 必须经 `qiniu-logs download <key>`
+- 空结果输出 `未找到用户 <uid> 的日志文件`，据此向用户回退（uid 错？时间窗太窄？）
 
 ## 典型工作流
 

@@ -74,15 +74,14 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("找到 %d 个日志文件:\n", len(files))
-	if cfg.Qiniu.Private {
-		fmt.Println("(私有空间，下载链接含签名，1 小时后失效)")
-	}
-	fmt.Println()
+	fmt.Printf("找到 %d 个日志文件:\n\n", len(files))
 	for i, f := range files {
 		fmt.Printf("%3d. %s\n", i+1, f.Key)
 		fmt.Printf("     大小: %s | 时间: %s\n", qiniu.FormatSize(f.Size), f.PutTime.Format("2006-01-02 15:04:05"))
-		fmt.Printf("     下载: %s\n", client.GetDownloadURL(f.Key))
+		fmt.Printf("     URL:  %s\n", client.GetPublicURL(f.Key))
+	}
+	if cfg.Qiniu.Private {
+		fmt.Println("\n(私有空间：URL 直接打开会 401，请用 'qiniu-logs download <key>' 下载——会自动签名)")
 	}
 
 	return nil
