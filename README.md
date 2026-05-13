@@ -169,7 +169,10 @@ GitHub Actions 会自动：
 
 本仓库自带一个 Claude Code skill（`skill/SKILL.md`），装载之后 AI agent 会在你说「下载用户 X 最近 24h 的日志」这类需求时，自动知道用本工具并按 `list → download` 流程跑。
 
-### 安装（前提：已 `brew install qiniu-logs` 且跑过一次 `qiniu-logs init`）
+> **关于 CLI 自身**：AI agent（Claude Code / Codex / Qoder 等）读到 SKILL.md 后，如果检测到 `qiniu-logs` 未安装，会**自动执行 `brew install Nevermore130/rela-qiniu-logs/qiniu-logs`**（含无 brew 的 `~/.local/bin` 后备路径）。SKILL.md 已经写明 brew 不需要 sudo，安装是低风险动作；但仍按各 agent 的"破坏性动作前告知"约定通告一句。
+> 配置初始化（`qiniu-logs init` 需输入 AK/SK）始终由用户交互完成，AI 不替代。
+
+### 安装（前提：CLI 已就绪 —— 你装好 brew + qiniu-logs，或让 AI 跑 SKILL 的 install 段落帮你装）
 
 ```bash
 git clone https://github.com/Nevermore130/rela-qiniu-logs.git  # 已 clone 可跳过

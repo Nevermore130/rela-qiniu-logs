@@ -45,11 +45,40 @@ metadata:
    ```bash
    command -v qiniu-logs >/dev/null && qiniu-logs --version || echo MISSING
    ```
-   若 `MISSING`：让用户运行
+
+   若 `MISSING`，**AI agent 可以自己执行下面的安装命令**（修改系统状态，按各 agent 的"破坏性动作前先告知一句"约定通告即可；除非碰到 sudo 提示，否则无需用户输入）。按优先级走：
+
+   **A. 有 brew（macOS / Linuxbrew，首选）**
    ```bash
-   brew install Nevermore130/rela-qiniu-logs/qiniu-logs
+   command -v brew >/dev/null && brew install Nevermore130/rela-qiniu-logs/qiniu-logs
    ```
-   （或参见 README 的其他平台二进制方案；不要尝试自己 `go install`，因为依赖私有桶配置）
+   `brew install` 不需要 sudo，落到 `$(brew --prefix)/bin`，PATH 通常已包含。装完用 `qiniu-logs --version` 自检。
+
+   **B. 没装 brew 但用户想装**
+   下面这条会调 sudo，**AI 不要直接执行**，让用户自己跑：
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+   完成后回到 A。
+
+   **C. 完全跳过 brew（不需要 sudo 的 fallback）**
+   AI 可直接执行；装到 `~/.local/bin` 避开权限问题：
+   ```bash
+   set -e
+   TAG=$(curl -fsSL https://api.github.com/repos/Nevermore130/rela-qiniu-logs/releases/latest \
+           | grep -oE '"tag_name": *"v[^"]+"' \
+           | head -1 \
+           | sed 's/.*"v\([^"]*\)".*/\1/')
+   OS=$(uname -s | tr '[:upper:]' '[:lower:]')                          # darwin | linux
+   ARCH=$(uname -m); [ "$ARCH" = "x86_64" ] && ARCH=amd64; [ "$ARCH" = "aarch64" ] && ARCH=arm64
+   URL="https://github.com/Nevermore130/rela-qiniu-logs/releases/download/v${TAG}/rela-qiniu-logs_${TAG}_${OS}_${ARCH}.tar.gz"
+   mkdir -p "$HOME/.local/bin"
+   curl -fsSL "$URL" | tar -xz -C "$HOME/.local/bin" qiniu-logs
+   case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) echo "⚠️  请把 \$HOME/.local/bin 加入 PATH"; esac
+   "$HOME/.local/bin/qiniu-logs" --version
+   ```
+
+   ⛔ **不要** `go install`：会绕过发布管道、拿到未发版 HEAD，且不带 ldflags 注入的 version。
 
 2. **配置已就绪？**
    ```bash
