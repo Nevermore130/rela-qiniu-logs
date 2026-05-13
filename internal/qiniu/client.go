@@ -28,6 +28,14 @@ type FileInfo struct {
 	Hash     string
 }
 
+// ListOptions 控制 ListFiles 的过滤与上限。
+// From / To 为零值表示不限边界；服务端不支持时间过滤，由 ListFiles 在客户端按 PutTime 过滤。
+type ListOptions struct {
+	Limit int
+	From  time.Time
+	To    time.Time
+}
+
 func NewClient(cfg *config.QiniuConfig) *Client {
 	mac := auth.New(cfg.AccessKey, cfg.SecretKey)
 	bucketMgr := storage.NewBucketManager(mac, &storage.Config{
@@ -41,20 +49,26 @@ func NewClient(cfg *config.QiniuConfig) *Client {
 	}
 }
 
-func (c *Client) ListFiles(ctx context.Context, userID string, limit int) ([]FileInfo, error) {
+func (c *Client) ListFiles(ctx context.Context, userID string, opts ListOptions) ([]FileInfo, error) {
 	prefix := userID
 	if c.cfg.PathPrefix != "" {
 		prefix = fmt.Sprintf("%s/%s", c.cfg.PathPrefix, userID)
 	}
 
+	hasTimeFilter := !opts.From.IsZero() || !opts.To.IsZero()
+
 	var files []FileInfo
 	marker := ""
 	batchLimit := 100
-	if limit > 0 && limit < batchLimit {
-		batchLimit = limit
+	if opts.Limit > 0 && opts.Limit < batchLimit && !hasTimeFilter {
+		batchLimit = opts.Limit
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		entries, _, nextMarker, hasNext, err := c.bucketMgr.ListFiles(
 			c.cfg.Bucket, prefix, "", marker, batchLimit,
 		)
@@ -64,6 +78,12 @@ func (c *Client) ListFiles(ctx context.Context, userID string, limit int) ([]Fil
 
 		for _, entry := range entries {
 			putTime := time.Unix(0, entry.PutTime*100)
+			if !opts.From.IsZero() && putTime.Before(opts.From) {
+				continue
+			}
+			if !opts.To.IsZero() && putTime.After(opts.To) {
+				continue
+			}
 			files = append(files, FileInfo{
 				Key:      entry.Key,
 				Size:     entry.Fsize,
@@ -71,11 +91,9 @@ func (c *Client) ListFiles(ctx context.Context, userID string, limit int) ([]Fil
 				PutTime:  putTime,
 				Hash:     entry.Hash,
 			})
-		}
-
-		if limit > 0 && len(files) >= limit {
-			files = files[:limit]
-			break
+			if opts.Limit > 0 && len(files) >= opts.Limit {
+				return files, nil
+			}
 		}
 
 		if !hasNext {

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/rela/qiniu-logs/internal/config"
@@ -11,6 +12,9 @@ import (
 
 var (
 	listLimit int
+	listFrom  string
+	listTo    string
+	listLast  string
 )
 
 var listCmd = &cobra.Command{
@@ -21,7 +25,10 @@ var listCmd = &cobra.Command{
 
 示例:
   qiniu-logs list 12345
-  qiniu-logs list 12345 --limit 10`,
+  qiniu-logs list 12345 --limit 10
+  qiniu-logs list 12345 --last 24h
+  qiniu-logs list 12345 --from 2026-05-10 --to 2026-05-13
+  qiniu-logs list 12345 --from "2026-05-13 08:00:00"`,
 	Args: cobra.ExactArgs(1),
 	RunE: runList,
 }
@@ -29,10 +36,18 @@ var listCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().IntVarP(&listLimit, "limit", "n", 0, "限制显示数量 (0 表示不限制)")
+	listCmd.Flags().StringVar(&listFrom, "from", "", "起始时间（含），支持 2006-01-02 / 2006-01-02 15:04:05 / RFC3339")
+	listCmd.Flags().StringVar(&listTo, "to", "", "结束时间（含），格式同 --from")
+	listCmd.Flags().StringVar(&listLast, "last", "", "最近时长（例如 30m / 24h / 7d / 1h30m），等价于 --from=now-<last>；与 --from 互斥")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
 	userID := args[0]
+
+	from, to, err := resolveTimeRange(listFrom, listTo, listLast, time.Now())
+	if err != nil {
+		return err
+	}
 
 	cfg, err := config.Load(getConfigPath())
 	if err != nil {
@@ -41,9 +56,17 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	client := qiniu.NewClient(&cfg.Qiniu)
 
-	files, err := client.ListFiles(context.Background(), userID, listLimit)
+	files, err := client.ListFiles(context.Background(), userID, qiniu.ListOptions{
+		Limit: listLimit,
+		From:  from,
+		To:    to,
+	})
 	if err != nil {
 		return fmt.Errorf("列举文件失败: %w", err)
+	}
+
+	if !from.IsZero() || !to.IsZero() {
+		fmt.Printf("时间范围: %s ~ %s\n", formatBound(from, "(不限)"), formatBound(to, "(不限)"))
 	}
 
 	if len(files) == 0 {

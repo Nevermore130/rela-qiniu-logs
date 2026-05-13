@@ -1,4 +1,4 @@
-.PHONY: build clean install test release
+.PHONY: build clean install test release run
 
 BINARY_NAME=qiniu-logs
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0")
@@ -16,6 +16,10 @@ PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 
 build:
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) .
+
+# 本地直接运行，免去先编译；用法: make run ARGS="list 12345 --last 24h"
+run:
+	$(GOCMD) run . $(ARGS)
 
 install: build
 	mv $(BINARY_NAME) $(GOPATH)/bin/

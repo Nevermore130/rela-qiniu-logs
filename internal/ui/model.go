@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -75,6 +76,7 @@ type Model struct {
 	client   *qiniu.Client
 	userID   string
 	destDir  string
+	listOpts qiniu.ListOptions
 	state    state
 	spinner  spinner.Model
 	list     list.Model
@@ -106,7 +108,7 @@ type errMsg struct {
 	err error
 }
 
-func NewModel(client *qiniu.Client, userID string, destDir string) Model {
+func NewModel(client *qiniu.Client, userID string, destDir string, opts qiniu.ListOptions) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -122,20 +124,32 @@ func NewModel(client *qiniu.Client, userID string, destDir string) Model {
 		BorderLeftForeground(lipgloss.Color("170"))
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
-	l.Title = fmt.Sprintf("用户 %s 的日志文件", userID)
+	title := fmt.Sprintf("用户 %s 的日志文件", userID)
+	if !opts.From.IsZero() || !opts.To.IsZero() {
+		title += fmt.Sprintf("（%s ~ %s）", boundLabel(opts.From), boundLabel(opts.To))
+	}
+	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.Styles.Title = titleStyle
 
 	return Model{
-		client:  client,
-		userID:  userID,
-		destDir: destDir,
-		state:   stateLoading,
-		spinner: s,
-		list:    l,
+		client:   client,
+		userID:   userID,
+		destDir:  destDir,
+		listOpts: opts,
+		state:    stateLoading,
+		spinner:  s,
+		list:     l,
 		progress: p,
 	}
+}
+
+func boundLabel(t time.Time) string {
+	if t.IsZero() {
+		return "不限"
+	}
+	return t.Format("2006-01-02 15:04")
 }
 
 func (m Model) Init() tea.Cmd {
@@ -146,7 +160,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadFiles() tea.Msg {
-	files, err := m.client.ListFiles(context.Background(), m.userID, 0)
+	files, err := m.client.ListFiles(context.Background(), m.userID, m.listOpts)
 	if err != nil {
 		return errMsg{err: err}
 	}

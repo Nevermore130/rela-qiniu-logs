@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -12,7 +13,10 @@ import (
 )
 
 var (
-	outputDir string
+	outputDir  string
+	searchFrom string
+	searchTo   string
+	searchLast string
 )
 
 var searchCmd = &cobra.Command{
@@ -23,7 +27,9 @@ var searchCmd = &cobra.Command{
 
 示例:
   qiniu-logs search 12345
-  qiniu-logs search 12345 -o ./logs`,
+  qiniu-logs search 12345 -o ./logs
+  qiniu-logs search 12345 --last 24h
+  qiniu-logs search 12345 --from 2026-05-10 --to 2026-05-13`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSearch,
 }
@@ -31,10 +37,18 @@ var searchCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(searchCmd)
 	searchCmd.Flags().StringVarP(&outputDir, "output", "o", ".", "下载文件保存目录")
+	searchCmd.Flags().StringVar(&searchFrom, "from", "", "起始时间（含），支持 2006-01-02 / 2006-01-02 15:04:05 / RFC3339")
+	searchCmd.Flags().StringVar(&searchTo, "to", "", "结束时间（含），格式同 --from")
+	searchCmd.Flags().StringVar(&searchLast, "last", "", "最近时长（例如 30m / 24h / 7d / 1h30m），与 --from 互斥")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
 	userID := args[0]
+
+	from, to, err := resolveTimeRange(searchFrom, searchTo, searchLast, time.Now())
+	if err != nil {
+		return err
+	}
 
 	cfg, err := config.Load(getConfigPath())
 	if err != nil {
@@ -50,7 +64,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		absOutput = outputDir
 	}
 
-	model := ui.NewModel(client, userID, absOutput)
+	model := ui.NewModel(client, userID, absOutput, qiniu.ListOptions{From: from, To: to})
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
