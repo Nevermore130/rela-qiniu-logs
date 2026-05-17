@@ -81,6 +81,9 @@ func (c *Config) synthesizeDefaultProject() {
 	if c.Qiniu.DefaultProject == "" {
 		c.Qiniu.DefaultProject = "default"
 	}
+	if _, ok := c.Qiniu.Projects["live_service"]; !ok {
+		c.Qiniu.Projects["live_service"] = builtinProjects()["live_service"]
+	}
 }
 
 // Project builds a validated *project.Project for the given name.
@@ -167,6 +170,23 @@ func (c *Config) Save(path string) error {
 	return nil
 }
 
+// builtinProjects returns the projects shipped preconfigured: a plain
+// uid-prefixed project plus the live_service path-timestamp layout.
+func builtinProjects() map[string]ProjectConfig {
+	return map[string]ProjectConfig{
+		"rela-debug-log": {
+			Prefix:     "{uid}",
+			TimeSource: string(project.TimePutTime),
+		},
+		"live_service": {
+			Prefix:     "live_service/{uid}/",
+			TimeSource: string(project.TimePath),
+			TimeRegex:  `_(\d{8}_\d{6})_`,
+			TimeLayout: "20060102_150405",
+		},
+	}
+}
+
 func DefaultConfig() *Config {
 	return &Config{
 		Qiniu: QiniuConfig{
@@ -176,10 +196,8 @@ func DefaultConfig() *Config {
 			Domain:         "",
 			UseHTTPS:       true,
 			Private:        true,
-			DefaultProject: "default",
-			Projects: map[string]ProjectConfig{
-				"default": {Prefix: "{uid}", TimeSource: string(project.TimePutTime)},
-			},
+			DefaultProject: "rela-debug-log",
+			Projects:       builtinProjects(),
 		},
 	}
 }
