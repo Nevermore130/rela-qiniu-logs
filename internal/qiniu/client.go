@@ -15,9 +15,9 @@ import (
 )
 
 type Client struct {
-	mac        *auth.Credentials
-	bucketMgr  *storage.BucketManager
-	cfg        *config.QiniuConfig
+	mac       *auth.Credentials
+	bucketMgr *storage.BucketManager
+	cfg       *config.QiniuConfig
 }
 
 type FileInfo struct {
