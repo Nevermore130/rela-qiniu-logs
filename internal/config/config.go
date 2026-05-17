@@ -28,7 +28,7 @@ type QiniuConfig struct {
 	SecretKey      string                   `yaml:"secret_key"`
 	Bucket         string                   `yaml:"bucket"`
 	Domain         string                   `yaml:"domain"`
-	PathPrefix     string                   `yaml:"path_prefix"` // legacy; only for backward-compat synthesis
+	PathPrefix     string                   `yaml:"path_prefix,omitempty"` // legacy; only for backward-compat synthesis
 	UseHTTPS       bool                     `yaml:"use_https"`
 	Private        bool                     `yaml:"private"`
 	DefaultProject string                   `yaml:"default_project"`
