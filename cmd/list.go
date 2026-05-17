@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/rela/qiniu-logs/internal/config"
 	"github.com/rela/qiniu-logs/internal/qiniu"
+	"github.com/spf13/cobra"
 )
 
 var (
-	listLimit int
-	listFrom  string
-	listTo    string
-	listLast  string
+	listLimit   int
+	listFrom    string
+	listTo      string
+	listLast    string
+	listProject string
 )
 
 var listCmd = &cobra.Command{
@@ -39,6 +40,7 @@ func init() {
 	listCmd.Flags().StringVar(&listFrom, "from", "", "起始时间（含），支持 2006-01-02 / 2006-01-02 15:04:05 / RFC3339")
 	listCmd.Flags().StringVar(&listTo, "to", "", "结束时间（含），格式同 --from")
 	listCmd.Flags().StringVar(&listLast, "last", "", "最近时长（例如 30m / 24h / 7d / 1h30m），等价于 --from=now-<last>；与 --from 互斥")
+	listCmd.Flags().StringVarP(&listProject, "project", "p", "", "项目名（不传则用配置中的 default_project）")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -54,9 +56,14 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("加载配置失败: %w\n\n请先运行 'qiniu-logs init' 初始化配置", err)
 	}
 
+	proj, err := resolveProject(cfg, listProject)
+	if err != nil {
+		return err
+	}
+
 	client := qiniu.NewClient(&cfg.Qiniu)
 
-	files, err := client.ListFiles(context.Background(), userID, qiniu.ListOptions{
+	files, err := client.ListFiles(context.Background(), proj.ListPrefix(userID), proj.FileTime, qiniu.ListOptions{
 		Limit: listLimit,
 		From:  from,
 		To:    to,
@@ -70,14 +77,14 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(files) == 0 {
-		fmt.Printf("未找到用户 %s 的日志文件\n", userID)
+		fmt.Printf("未找到用户 %s 的日志文件（项目: %s）\n", userID, proj.Name)
 		return nil
 	}
 
-	fmt.Printf("找到 %d 个日志文件:\n\n", len(files))
+	fmt.Printf("找到 %d 个日志文件（项目: %s）:\n\n", len(files), proj.Name)
 	for i, f := range files {
 		fmt.Printf("%3d. %s\n", i+1, f.Key)
-		fmt.Printf("     大小: %s | 时间: %s\n", qiniu.FormatSize(f.Size), f.PutTime.Format("2006-01-02 15:04:05"))
+		fmt.Printf("     大小: %s | 时间: %s\n", qiniu.FormatSize(f.Size), f.LogTime.Format("2006-01-02 15:04:05"))
 		fmt.Printf("     URL:  %s\n", client.GetPublicURL(f.Key))
 	}
 	if cfg.Qiniu.Private {
