@@ -4,22 +4,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/rela/qiniu-logs/internal/project"
 )
 
 type Config struct {
 	Qiniu QiniuConfig `yaml:"qiniu"`
 }
 
+type ProjectConfig struct {
+	Prefix     string `yaml:"prefix"`
+	TimeSource string `yaml:"time_source"`
+	TimeRegex  string `yaml:"time_regex"`
+	TimeLayout string `yaml:"time_layout"`
+}
+
 type QiniuConfig struct {
-	AccessKey  string `yaml:"access_key"`
-	SecretKey  string `yaml:"secret_key"`
-	Bucket     string `yaml:"bucket"`
-	Domain     string `yaml:"domain"`
-	PathPrefix string `yaml:"path_prefix"`
-	UseHTTPS   bool   `yaml:"use_https"`
-	Private    bool   `yaml:"private"`
+	AccessKey      string                   `yaml:"access_key"`
+	SecretKey      string                   `yaml:"secret_key"`
+	Bucket         string                   `yaml:"bucket"`
+	Domain         string                   `yaml:"domain"`
+	PathPrefix     string                   `yaml:"path_prefix"` // legacy; only for backward-compat synthesis
+	UseHTTPS       bool                     `yaml:"use_https"`
+	Private        bool                     `yaml:"private"`
+	DefaultProject string                   `yaml:"default_project"`
+	Projects       map[string]ProjectConfig `yaml:"projects"`
 }
 
 func DefaultConfigPath() string {
@@ -45,11 +58,57 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
+	cfg.synthesizeDefaultProject()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func (c *Config) synthesizeDefaultProject() {
+	if len(c.Qiniu.Projects) > 0 {
+		return
+	}
+	prefix := "{uid}"
+	if c.Qiniu.PathPrefix != "" {
+		prefix = c.Qiniu.PathPrefix + "/{uid}"
+	}
+	c.Qiniu.Projects = map[string]ProjectConfig{
+		"default": {Prefix: prefix, TimeSource: string(project.TimePutTime)},
+	}
+	if c.Qiniu.DefaultProject == "" {
+		c.Qiniu.DefaultProject = "default"
+	}
+}
+
+// Project builds a validated *project.Project for the given name.
+func (c *Config) Project(name string) (*project.Project, error) {
+	pc, ok := c.Qiniu.Projects[name]
+	if !ok {
+		return nil, fmt.Errorf("未知项目 %q；可用项目: %s", name, c.projectNames())
+	}
+	p := &project.Project{
+		Name:       name,
+		Prefix:     pc.Prefix,
+		TimeSource: project.TimeSource(pc.TimeSource),
+		TimeRegex:  pc.TimeRegex,
+		TimeLayout: pc.TimeLayout,
+	}
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (c *Config) projectNames() string {
+	names := make([]string, 0, len(c.Qiniu.Projects))
+	for n := range c.Qiniu.Projects {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
 }
 
 func (c *Config) Validate() error {
@@ -64,6 +123,23 @@ func (c *Config) Validate() error {
 	}
 	if c.Qiniu.Domain == "" {
 		return fmt.Errorf("配置错误: domain 不能为空")
+	}
+	if c.Qiniu.DefaultProject != "" {
+		if _, ok := c.Qiniu.Projects[c.Qiniu.DefaultProject]; !ok {
+			return fmt.Errorf("配置错误: default_project %q 不在 projects 中", c.Qiniu.DefaultProject)
+		}
+	}
+	for name, pc := range c.Qiniu.Projects {
+		p := &project.Project{
+			Name:       name,
+			Prefix:     pc.Prefix,
+			TimeSource: project.TimeSource(pc.TimeSource),
+			TimeRegex:  pc.TimeRegex,
+			TimeLayout: pc.TimeLayout,
+		}
+		if err := p.Validate(); err != nil {
+			return fmt.Errorf("配置错误: %w", err)
+		}
 	}
 	return nil
 }
@@ -93,13 +169,16 @@ func (c *Config) Save(path string) error {
 func DefaultConfig() *Config {
 	return &Config{
 		Qiniu: QiniuConfig{
-			AccessKey:  "",
-			SecretKey:  "",
-			Bucket:     "rela-debug-log",
-			Domain:     "",
-			PathPrefix: "",
-			UseHTTPS:   true,
-			Private:    true,
+			AccessKey:      "",
+			SecretKey:      "",
+			Bucket:         "rela-debug-log",
+			Domain:         "",
+			UseHTTPS:       true,
+			Private:        true,
+			DefaultProject: "default",
+			Projects: map[string]ProjectConfig{
+				"default": {Prefix: "{uid}", TimeSource: string(project.TimePutTime)},
+			},
 		},
 	}
 }
