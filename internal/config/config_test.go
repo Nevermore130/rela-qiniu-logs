@@ -130,3 +130,37 @@ qiniu:
 		t.Fatal("expected error: default_project references unknown project")
 	}
 }
+
+func TestConfigProjectFactory(t *testing.T) {
+	p := writeTmp(t, `
+qiniu:
+  access_key: ak
+  secret_key: sk
+  bucket: b
+  domain: d
+  default_project: live_service
+  projects:
+    live_service:
+      prefix: "live_service/{uid}/"
+      time_source: path
+      time_regex: "_(\\d{8}_\\d{6})_"
+      time_layout: "20060102_150405"
+`)
+	cfg, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	proj, err := cfg.Project("live_service")
+	if err != nil {
+		t.Fatalf("Project: %v", err)
+	}
+	if proj.Name != "live_service" || proj.Prefix != "live_service/{uid}/" {
+		t.Fatalf("unexpected project: %+v", proj)
+	}
+	if got := proj.ListPrefix("12345"); got != "live_service/12345/" {
+		t.Fatalf("ListPrefix = %q, want live_service/12345/", got)
+	}
+	if _, err := cfg.Project("ghost"); err == nil {
+		t.Fatal("expected error for unknown project name")
+	}
+}

@@ -89,17 +89,21 @@ func (c *Config) Project(name string) (*project.Project, error) {
 	if !ok {
 		return nil, fmt.Errorf("未知项目 %q；可用项目: %s", name, c.projectNames())
 	}
-	p := &project.Project{
+	p := projectFromConfig(name, pc)
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func projectFromConfig(name string, pc ProjectConfig) *project.Project {
+	return &project.Project{
 		Name:       name,
 		Prefix:     pc.Prefix,
 		TimeSource: project.TimeSource(pc.TimeSource),
 		TimeRegex:  pc.TimeRegex,
 		TimeLayout: pc.TimeLayout,
 	}
-	if err := p.Validate(); err != nil {
-		return nil, err
-	}
-	return p, nil
 }
 
 func (c *Config) projectNames() string {
@@ -124,19 +128,16 @@ func (c *Config) Validate() error {
 	if c.Qiniu.Domain == "" {
 		return fmt.Errorf("配置错误: domain 不能为空")
 	}
+	if len(c.Qiniu.Projects) > 0 && c.Qiniu.DefaultProject == "" {
+		return fmt.Errorf("配置错误: projects 非空时 default_project 不能为空")
+	}
 	if c.Qiniu.DefaultProject != "" {
 		if _, ok := c.Qiniu.Projects[c.Qiniu.DefaultProject]; !ok {
 			return fmt.Errorf("配置错误: default_project %q 不在 projects 中", c.Qiniu.DefaultProject)
 		}
 	}
 	for name, pc := range c.Qiniu.Projects {
-		p := &project.Project{
-			Name:       name,
-			Prefix:     pc.Prefix,
-			TimeSource: project.TimeSource(pc.TimeSource),
-			TimeRegex:  pc.TimeRegex,
-			TimeLayout: pc.TimeLayout,
-		}
+		p := projectFromConfig(name, pc)
 		if err := p.Validate(); err != nil {
 			return fmt.Errorf("配置错误: %w", err)
 		}
