@@ -73,22 +73,24 @@ func (i fileItem) FilterValue() string {
 }
 
 type Model struct {
-	client   *qiniu.Client
-	userID   string
-	destDir  string
-	listOpts qiniu.ListOptions
-	state    state
-	spinner  spinner.Model
-	list     list.Model
-	progress progress.Model
-	files    []qiniu.FileInfo
-	selected *qiniu.FileInfo
-	err      error
-	message  string
+	client     *qiniu.Client
+	userID     string
+	prefix     string
+	resolve    qiniu.TimeResolver
+	destDir    string
+	listOpts   qiniu.ListOptions
+	state      state
+	spinner    spinner.Model
+	list       list.Model
+	progress   progress.Model
+	files      []qiniu.FileInfo
+	selected   *qiniu.FileInfo
+	err        error
+	message    string
 	downloaded int64
 	total      int64
-	width    int
-	height   int
+	width      int
+	height     int
 }
 
 type filesLoadedMsg struct {
@@ -108,7 +110,7 @@ type errMsg struct {
 	err error
 }
 
-func NewModel(client *qiniu.Client, userID string, destDir string, opts qiniu.ListOptions) Model {
+func NewModel(client *qiniu.Client, userID, prefix string, resolve qiniu.TimeResolver, destDir string, opts qiniu.ListOptions) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -136,6 +138,8 @@ func NewModel(client *qiniu.Client, userID string, destDir string, opts qiniu.Li
 	return Model{
 		client:   client,
 		userID:   userID,
+		prefix:   prefix,
+		resolve:  resolve,
 		destDir:  destDir,
 		listOpts: opts,
 		state:    stateLoading,
@@ -160,7 +164,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) loadFiles() tea.Msg {
-	files, err := m.client.ListFiles(context.Background(), m.userID, m.listOpts)
+	files, err := m.client.ListFiles(context.Background(), m.prefix, m.resolve, m.listOpts)
 	if err != nil {
 		return errMsg{err: err}
 	}

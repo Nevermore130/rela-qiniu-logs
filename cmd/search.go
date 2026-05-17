@@ -6,17 +6,18 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 	"github.com/rela/qiniu-logs/internal/config"
 	"github.com/rela/qiniu-logs/internal/qiniu"
 	"github.com/rela/qiniu-logs/internal/ui"
+	"github.com/spf13/cobra"
 )
 
 var (
-	outputDir  string
-	searchFrom string
-	searchTo   string
-	searchLast string
+	outputDir     string
+	searchFrom    string
+	searchTo      string
+	searchLast    string
+	searchProject string
 )
 
 var searchCmd = &cobra.Command{
@@ -40,6 +41,7 @@ func init() {
 	searchCmd.Flags().StringVar(&searchFrom, "from", "", "起始时间（含），支持 2006-01-02 / 2006-01-02 15:04:05 / RFC3339")
 	searchCmd.Flags().StringVar(&searchTo, "to", "", "结束时间（含），格式同 --from")
 	searchCmd.Flags().StringVar(&searchLast, "last", "", "最近时长（例如 30m / 24h / 7d / 1h30m），与 --from 互斥")
+	searchCmd.Flags().StringVarP(&searchProject, "project", "p", "", "项目名（不传则用配置中的 default_project）")
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
@@ -55,6 +57,11 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("加载配置失败: %w\n\n请先运行 'qiniu-logs init' 初始化配置", err)
 	}
 
+	proj, err := resolveProject(cfg, searchProject)
+	if err != nil {
+		return err
+	}
+
 	client := qiniu.NewClient(&cfg.Qiniu)
 
 	absOutput, err := os.Getwd()
@@ -64,7 +71,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		absOutput = outputDir
 	}
 
-	model := ui.NewModel(client, userID, absOutput, qiniu.ListOptions{From: from, To: to})
+	model := ui.NewModel(client, userID, proj.ListPrefix(userID), proj.FileTime, absOutput, qiniu.ListOptions{From: from, To: to})
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
