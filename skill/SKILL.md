@@ -97,7 +97,7 @@ metadata:
    | `domain` | ✅ | "CDN 域名（不含 `https://`）" | 写入时也不带 scheme |
    | `private` | ❌ | "是否私有空间？[Y/n]" | 默认 `true`，仅 `n / no` 视作 false |
 
-   `path_prefix` 是旧版遗留字段（可选），现代配置改用 `projects` 映射 + `default_project`，见 2.3 模板。收集 AK/SK 的安全要求不变：**收到即写文件，绝不在对话或摘要里复述**。
+   AI 写配置时直接用 2.3 的 YAML 模板（已含 `rela-debug-log` + `live_service` 两个预置项目、`default_project: rela-debug-log`），不写 `path_prefix`（仅旧配置兼容字段）。收集 AK/SK 的安全要求不变：**收到即写文件，绝不在对话或摘要里复述**。
 
    ### 2.2 写文件方式（务必）
 

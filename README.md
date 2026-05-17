@@ -69,8 +69,8 @@ qiniu-logs init
 - Domain: CDN 域名（不含 https://）
 - Private: 是否为私有空间
 
-> `init` 只交互收集上面这些字段，并自动写入一个名为 `default` 的项目（沿用旧 `path_prefix` 行为）。
-> 多项目（如 `projects`、`default_project`）不在交互流程内：完成 `init` 后编辑 `~/.qiniu-logs/config.yaml` 的 `projects:` 段，再用 `--project` 选择。`path_prefix` 仍受支持（旧版遗留字段），会自动合成 `default` 项目，行为不变。
+> `init` 只交互收集上面这些字段（不询问 path_prefix），并自动写入预置项目 `rela-debug-log` 与 `live_service`，`default_project` 为 `rela-debug-log`；新配置不含 `path_prefix` 字段。
+> 旧配置（只有 `path_prefix`、无 `projects`）在加载时保留原 `default` 行为不变，并自动追加 `live_service`；已显式声明 `projects:` 的配置原样保留。重跑 `init` 不会覆盖你已有的 projects。
 
 配置文件保存在 `~/.qiniu-logs/config.yaml`
 
