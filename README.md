@@ -68,10 +68,9 @@ qiniu-logs init
 - Bucket: 存储空间名称（如 `rela-debug-log`）
 - Domain: CDN 域名（不含 https://）
 - Private: 是否为私有空间
-- `projects`: 各产品的路径布局（prefix 模板 + 时间来源），在 `config.yaml` 的 `projects:` 下声明
-- `default_project`: 不传 `--project` 时使用的项目名称
 
-> `path_prefix` 仍受支持（旧版遗留字段），会自动合成一个 `default` 项目，行为不变。新配置建议直接使用 `projects` 映射。
+> `init` 只交互收集上面这些字段，并自动写入一个名为 `default` 的项目（沿用旧 `path_prefix` 行为）。
+> 多项目（如 `projects`、`default_project`）不在交互流程内：完成 `init` 后编辑 `~/.qiniu-logs/config.yaml` 的 `projects:` 段，再用 `--project` 选择。`path_prefix` 仍受支持（旧版遗留字段），会自动合成 `default` 项目，行为不变。
 
 配置文件保存在 `~/.qiniu-logs/config.yaml`
 
