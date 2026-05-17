@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/rela/qiniu-logs/internal/config"
 	"github.com/rela/qiniu-logs/internal/qiniu"
+	"github.com/spf13/cobra"
 )
 
 var downloadCmd = &cobra.Command{
