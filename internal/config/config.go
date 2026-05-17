@@ -81,6 +81,9 @@ func (c *Config) synthesizeDefaultProject() {
 	if c.Qiniu.DefaultProject == "" {
 		c.Qiniu.DefaultProject = "default"
 	}
+	// Additively expose live_service alongside the synthesized default.
+	// The !ok guard is defensive: harmless today, future-proof if another
+	// synthesis branch ever pre-populates the key.
 	if _, ok := c.Qiniu.Projects["live_service"]; !ok {
 		c.Qiniu.Projects["live_service"] = builtinProjects()["live_service"]
 	}
