@@ -67,8 +67,11 @@ qiniu-logs init
 - Secret Key: 七牛云 Secret Key
 - Bucket: 存储空间名称（如 `rela-debug-log`）
 - Domain: CDN 域名（不含 https://）
-- PathPrefix: 文件路径前缀（可选）
 - Private: 是否为私有空间
+- `projects`: 各产品的路径布局（prefix 模板 + 时间来源），在 `config.yaml` 的 `projects:` 下声明
+- `default_project`: 不传 `--project` 时使用的项目名称
+
+> `path_prefix` 仍受支持（旧版遗留字段），会自动合成一个 `default` 项目，行为不变。新配置建议直接使用 `projects` 映射。
 
 配置文件保存在 `~/.qiniu-logs/config.yaml`
 
@@ -127,12 +130,31 @@ qiniu-logs config
 | `--version` | 显示版本号 |
 | `--help` | 显示帮助信息 |
 
+### list / search 专属选项
+
+`list` 和 `search` 支持 `-p, --project <name>` 选择项目（默认使用配置中的 `default_project`）。例如：
+
+```bash
+qiniu-logs list 12345 --project live_service --last 24h
+qiniu-logs search 12345 --project live_service
+```
+
 ## 文件路径规则
 
-工具会根据配置中的 `path_prefix` 和用户ID组合成完整的搜索路径：
+工具按「项目」决定搜索路径。每个项目在 config.yaml 的 `projects:` 下声明：
 
-- 无前缀时：搜索 `{user_id}/` 下的所有文件
-- 有前缀时：搜索 `{path_prefix}/{user_id}/` 下的所有文件
+- `prefix`: 含 `{uid}` 占位符的前缀模板，例如 `{uid}`（默认）或 `live_service/{uid}/`
+- `time_source`: `put_time`（按对象上传时间，默认）或 `path`（从 key 解析时间）
+- `time_regex` / `time_layout`: 当 `time_source: path` 时，用恰好一个捕获组的正则
+  抓出时间子串，再用 Go 时间布局解析
+
+查询时用 `--project <name>` 选择；不传则用 `default_project`。
+旧配置（只有 `path_prefix`）会自动合成一个 `default` 项目，行为不变。
+
+示例（直播小助手独立路径）：
+`live_service/12345/20260516_1030/log_12345_20260516_103015_a1b2c3d4.zip`
+对应项目 `live_service`：prefix `live_service/{uid}/`，time_source `path`，
+time_regex `_(\d{8}_\d{6})_`，time_layout `20060102_150405`。
 
 ## 开发
 

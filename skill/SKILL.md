@@ -87,7 +87,7 @@ metadata:
 
    若 `NO_CONFIG`，**AI 自己驱动初始化**，流程：用 agent 的"向用户提问"原语（Claude Code: `AskUserQuestion`；Codex / Qoder: 等价的交互输入）**逐项收集**字段 → 用 agent 的"文件写入"原语直接落到 `~/.qiniu-logs/config.yaml` → `qiniu-logs config` 验证。
 
-   ### 2.1 向用户收集的 6 个字段
+   ### 2.1 向用户收集的字段
 
    | 字段 | 必填 | 提问示例 | 备注 |
    |---|---|---|---|
@@ -95,8 +95,9 @@ metadata:
    | `secret_key` | ✅ | "请输入七牛 Secret Key" | 同上 |
    | `bucket` | ✅ | "Bucket 名称（默认 `rela-debug-log`）" | 给默认值时让用户能 Enter 接受 |
    | `domain` | ✅ | "CDN 域名（不含 `https://`）" | 写入时也不带 scheme |
-   | `path_prefix` | ❌ | "文件路径前缀（留空则按 `{user_id}/` 搜索）" | 空字符串合法 |
    | `private` | ❌ | "是否私有空间？[Y/n]" | 默认 `true`，仅 `n / no` 视作 false |
+
+   `path_prefix` 是旧版遗留字段（可选），现代配置改用 `projects` 映射 + `default_project`，见 2.3 模板。收集 AK/SK 的安全要求不变：**收到即写文件，绝不在对话或摘要里复述**。
 
    ### 2.2 写文件方式（务必）
 
@@ -113,9 +114,18 @@ metadata:
      secret_key: "<USER_SK>"
      bucket: "<USER_BUCKET>"
      domain: "<USER_DOMAIN>"
-     path_prefix: "<USER_PATH_PREFIX 或空字符串>"
      use_https: true
      private: <true|false>
+     default_project: rela-debug-log
+     projects:
+       rela-debug-log:
+         prefix: "{uid}"
+         time_source: put_time
+       live_service:
+         prefix: "live_service/{uid}/"
+         time_source: path
+         time_regex: "_(\\d{8}_\\d{6})_"
+         time_layout: "20060102_150405"
    ```
 
    ### 2.4 写完立刻收紧权限并验证
@@ -147,6 +157,7 @@ metadata:
 | 指定日期范围 | `qiniu-logs list <uid> --from 2026-05-10 --to 2026-05-13` |
 | 精确到时分秒 | `qiniu-logs list <uid> --from "2026-05-13 08:00:00" --to "2026-05-13 12:00:00"` |
 | 限制返回条数 | `qiniu-logs list <uid> --last 24h --limit 10` |
+| 指定项目（多产品） | `qiniu-logs list <uid> --project live_service --last 24h` |
 | 按 key 下载到目录 | `qiniu-logs download <file_key> -o ./logs` |
 | 用临时配置文件 | `qiniu-logs --config ./alt-config.yaml list <uid> --last 24h` |
 
@@ -169,6 +180,8 @@ metadata:
 ## `list` 输出解析
 
 每条文件占 **3 行**（v0.2.2+），第 3 行是裸的 `https://domain/key`——**不含签名 token**，仅作展示与识别用途。私有桶真正下载时由 `qiniu-logs download <key>` 在请求时刻就地签名。
+
+`时间` 字段显示的是解析后的**逻辑时间**（`LogTime`）：`path` 项目从文件 key 中提取路径时间戳，其它项目（或 key 不匹配 time_regex）显示对象上传时间（PutTime）。
 
 ```
 时间范围: 2026-05-12 17:00:00 ~ (不限)
@@ -256,6 +269,7 @@ qiniu-logs download "$key" -o ./logs
 | `下载失败，状态码: 401 / 403` | 私有桶签名 URL 鉴权失败；让用户重跑 `init` 检查 AK/SK 或 `private` 配置 |
 | `下载失败，状态码: 404` | key 在桶中被清除，或 `domain` 配置错误 |
 | `--last 与 --from 不能同时使用` | 二选一传给 CLI |
+| `未知项目 "X"；可用项目: ...` | `--project` 名字写错；用列出的名字之一，或在 config 的 projects 段新增对应项目 |
 
 ## 配置文件结构（参考，AI 不要自己改）
 
@@ -267,10 +281,21 @@ qiniu:
   secret_key: ""        # 七牛 SK
   bucket: rela-debug-log
   domain: ""            # CDN 域名，不含 https://
-  path_prefix: ""       # 可选；若设置，搜索路径为 {path_prefix}/{user_id}/
   use_https: true
   private: true         # 私有空间会用签名 URL，1 小时有效
+  default_project: rela-debug-log
+  projects:
+    rela-debug-log:
+      prefix: "{uid}"
+      time_source: put_time
+    live_service:
+      prefix: "live_service/{uid}/"
+      time_source: path
+      time_regex: "_(\\d{8}_\\d{6})_"
+      time_layout: "20060102_150405"
 ```
+
+新增项目：在 projects: 下加一段，prefix 必须含 {uid}；时间在路径里则用 time_source: path + time_regex（恰好 1 个捕获组）+ time_layout（Go 时间布局），否则 time_source: put_time。
 
 ## 进一步资料
 
