@@ -69,7 +69,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		To:    to,
 	})
 	if err != nil {
-		return fmt.Errorf("列举文件失败: %w", err)
+		return fmt.Errorf("查询项目 %q 失败: %w", proj.Name, err)
 	}
 
 	if !from.IsZero() || !to.IsZero() {
