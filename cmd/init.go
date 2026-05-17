@@ -46,17 +46,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 	cfg.Qiniu.SecretKey = promptWithDefault(reader, "Secret Key", cfg.Qiniu.SecretKey, true)
 	cfg.Qiniu.Bucket = promptWithDefault(reader, "Bucket 名称", cfg.Qiniu.Bucket, false)
 	cfg.Qiniu.Domain = promptWithDefault(reader, "CDN 域名 (不含 https://)", cfg.Qiniu.Domain, false)
-	cfg.Qiniu.PathPrefix = promptWithDefault(reader, "文件路径前缀 (可选，留空表示无前缀)", cfg.Qiniu.PathPrefix, false)
-
-	// Translate the legacy path_prefix prompt into the single default project.
-	defPrefix := "{uid}"
-	if cfg.Qiniu.PathPrefix != "" {
-		defPrefix = cfg.Qiniu.PathPrefix + "/{uid}"
-	}
-	cfg.Qiniu.DefaultProject = "default"
-	cfg.Qiniu.Projects = map[string]config.ProjectConfig{
-		"default": {Prefix: defPrefix, TimeSource: "put_time"},
-	}
 
 	privateStr := "y"
 	if !cfg.Qiniu.Private {
@@ -73,7 +62,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✓ 配置已保存到: %s\n", cfgPath)
 	fmt.Println()
 	fmt.Println("现在可以使用 'qiniu-logs search <user_id>' 搜索日志文件")
-	fmt.Println("多项目：编辑 ~/.qiniu-logs/config.yaml 的 projects: 段，再用 --project 选择")
+	fmt.Println("已预置项目 rela-debug-log / live_service，用 --project 选择；如需更多项目编辑 ~/.qiniu-logs/config.yaml 的 projects: 段")
 
 	return nil
 }
