@@ -17,6 +17,10 @@ const (
 	TimePath    TimeSource = "path"
 )
 
+// Project is not safe for concurrent use: FileTime may lazily compile the
+// time regex. In normal CLI usage Validate (or Compile) runs first, so the
+// lazy path is only a fallback.
+//
 // Project is one named path layout within the shared account+bucket.
 type Project struct {
 	Name       string
@@ -38,7 +42,7 @@ func (p *Project) ListPrefix(uid string) string {
 // Compile prepares the time regex. Call once after Validate (Validate also
 // compiles, so calling Compile separately is optional but harmless).
 func (p *Project) Compile() error {
-	if p.TimeSource != TimePath {
+	if p.TimeSource != TimePath || p.timeRe != nil {
 		return nil
 	}
 	re, err := regexp.Compile(p.TimeRegex)
@@ -53,23 +57,27 @@ func (p *Project) Compile() error {
 // supplied object PutTime. For path it extracts the regex capture group and
 // parses it with TimeLayout in the local timezone.
 func (p *Project) FileTime(key string, putTime time.Time) (time.Time, error) {
-	if p.TimeSource == TimePutTime {
+	switch p.TimeSource {
+	case TimePutTime:
 		return putTime, nil
-	}
-	if p.timeRe == nil {
-		if err := p.Compile(); err != nil {
-			return time.Time{}, err
+	case TimePath:
+		if p.timeRe == nil {
+			if err := p.Compile(); err != nil {
+				return time.Time{}, err
+			}
 		}
+		m := p.timeRe.FindStringSubmatch(key)
+		if m == nil || len(m) < 2 {
+			return time.Time{}, fmt.Errorf("项目 %q: key %q 不匹配 time_regex", p.Name, key)
+		}
+		t, err := time.ParseInLocation(p.TimeLayout, m[1], time.Local)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("项目 %q: 无法用 time_layout %q 解析 %q: %w", p.Name, p.TimeLayout, m[1], err)
+		}
+		return t, nil
+	default:
+		return time.Time{}, fmt.Errorf("项目 %q: 未知 time_source %q（应为 put_time 或 path）", p.Name, p.TimeSource)
 	}
-	m := p.timeRe.FindStringSubmatch(key)
-	if m == nil || len(m) < 2 {
-		return time.Time{}, fmt.Errorf("项目 %q: key %q 不匹配 time_regex", p.Name, key)
-	}
-	t, err := time.ParseInLocation(p.TimeLayout, m[1], time.Local)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("项目 %q: 无法用 time_layout %q 解析 %q: %w", p.Name, p.TimeLayout, m[1], err)
-	}
-	return t, nil
 }
 
 // Validate checks structural correctness and compiles the regex.

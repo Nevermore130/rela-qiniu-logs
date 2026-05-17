@@ -62,6 +62,18 @@ func TestFileTimePath(t *testing.T) {
 	if _, err := p.FileTime("live_service/12345/garbage.txt", time.Time{}); err == nil {
 		t.Fatal("expected error for non-matching key, got nil")
 	}
+
+	// Lazy path: FileTime without an explicit Compile() must still work.
+	lazy := &Project{
+		Name:       "lazy",
+		Prefix:     "live_service/{uid}/",
+		TimeSource: TimePath,
+		TimeRegex:  `_(\d{8}_\d{6})_`,
+		TimeLayout: "20060102_150405",
+	}
+	if _, err := lazy.FileTime(key, time.Time{}); err != nil {
+		t.Fatalf("lazy compile path: %v", err)
+	}
 }
 
 func TestValidate(t *testing.T) {
