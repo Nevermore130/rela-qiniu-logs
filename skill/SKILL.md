@@ -265,7 +265,7 @@ qiniu-logs download "$key" -o ./logs
 | 现象 | 处理 |
 |---|---|
 | `加载配置失败 ... 请先运行 'qiniu-logs init'` | 让用户交互跑 `qiniu-logs init` |
-| `未找到用户 X 的日志文件（项目: ...）` | 先确认 uid 是否正确；再放宽时间窗；检查 `--project` 是否选对；最后检查 `path_prefix` 配置 |
+| `未找到用户 X 的日志文件（项目: ...）` | 先确认 uid 是否正确；再放宽时间窗；检查 `--project` 是否选对；最后检查 `projects:` 中对应项目的 `prefix` 是否正确（旧配置可能是 `path_prefix`） |
 | `下载失败，状态码: 401 / 403` | 私有桶签名 URL 鉴权失败；让用户重跑 `init` 检查 AK/SK 或 `private` 配置 |
 | `下载失败，状态码: 404` | key 在桶中被清除，或 `domain` 配置错误 |
 | `--last 与 --from 不能同时使用` | 二选一传给 CLI |
