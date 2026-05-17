@@ -25,6 +25,7 @@ type FileInfo struct {
 	Size     int64
 	MimeType string
 	PutTime  time.Time
+	LogTime  time.Time // resolved logical time; equals PutTime when unresolved
 	Hash     string
 }
 
@@ -34,6 +35,54 @@ type ListOptions struct {
 	Limit int
 	From  time.Time
 	To    time.Time
+}
+
+// TimeResolver maps an object key + its PutTime to the logical log time.
+// A non-nil error means the time could not be determined from the key.
+type TimeResolver func(key string, putTime time.Time) (time.Time, error)
+
+type rawEntry struct {
+	Key      string
+	Size     int64
+	MimeType string
+	PutTime  time.Time
+	Hash     string
+}
+
+// selectFiles applies the time window + limit to already-listed entries.
+// Unresolved time is excluded when a time filter is active, and included
+// (LogTime falling back to PutTime) when there is no filter.
+func selectFiles(entries []rawEntry, resolve TimeResolver, opts ListOptions) ([]FileInfo, error) {
+	hasFilter := !opts.From.IsZero() || !opts.To.IsZero()
+	var out []FileInfo
+	for _, e := range entries {
+		logTime, rerr := resolve(e.Key, e.PutTime)
+		if rerr != nil {
+			if hasFilter {
+				continue
+			}
+			logTime = e.PutTime
+		} else {
+			if !opts.From.IsZero() && logTime.Before(opts.From) {
+				continue
+			}
+			if !opts.To.IsZero() && logTime.After(opts.To) {
+				continue
+			}
+		}
+		out = append(out, FileInfo{
+			Key:      e.Key,
+			Size:     e.Size,
+			MimeType: e.MimeType,
+			PutTime:  e.PutTime,
+			LogTime:  logTime,
+			Hash:     e.Hash,
+		})
+		if opts.Limit > 0 && len(out) >= opts.Limit {
+			return out, nil
+		}
+	}
+	return out, nil
 }
 
 func NewClient(cfg *config.QiniuConfig) *Client {
@@ -49,18 +98,13 @@ func NewClient(cfg *config.QiniuConfig) *Client {
 	}
 }
 
-func (c *Client) ListFiles(ctx context.Context, userID string, opts ListOptions) ([]FileInfo, error) {
-	prefix := userID
-	if c.cfg.PathPrefix != "" {
-		prefix = fmt.Sprintf("%s/%s", c.cfg.PathPrefix, userID)
-	}
+func (c *Client) ListFiles(ctx context.Context, prefix string, resolve TimeResolver, opts ListOptions) ([]FileInfo, error) {
+	hasFilter := !opts.From.IsZero() || !opts.To.IsZero()
 
-	hasTimeFilter := !opts.From.IsZero() || !opts.To.IsZero()
-
-	var files []FileInfo
+	var raw []rawEntry
 	marker := ""
 	batchLimit := 100
-	if opts.Limit > 0 && opts.Limit < batchLimit && !hasTimeFilter {
+	if opts.Limit > 0 && opts.Limit < batchLimit && !hasFilter {
 		batchLimit = opts.Limit
 	}
 
@@ -77,32 +121,25 @@ func (c *Client) ListFiles(ctx context.Context, userID string, opts ListOptions)
 		}
 
 		for _, entry := range entries {
-			putTime := time.Unix(0, entry.PutTime*100)
-			if !opts.From.IsZero() && putTime.Before(opts.From) {
-				continue
-			}
-			if !opts.To.IsZero() && putTime.After(opts.To) {
-				continue
-			}
-			files = append(files, FileInfo{
+			raw = append(raw, rawEntry{
 				Key:      entry.Key,
 				Size:     entry.Fsize,
 				MimeType: entry.MimeType,
-				PutTime:  putTime,
+				PutTime:  time.Unix(0, entry.PutTime*100),
 				Hash:     entry.Hash,
 			})
-			if opts.Limit > 0 && len(files) >= opts.Limit {
-				return files, nil
-			}
 		}
 
+		if opts.Limit > 0 && !hasFilter && len(raw) >= opts.Limit {
+			break
+		}
 		if !hasNext {
 			break
 		}
 		marker = nextMarker
 	}
 
-	return files, nil
+	return selectFiles(raw, resolve, opts)
 }
 
 // GetPublicURL returns the unsigned `scheme://domain/key` URL.
