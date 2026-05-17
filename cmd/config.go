@@ -40,7 +40,9 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Secret Key: %s****\n", maskString(cfg.Qiniu.SecretKey, 4))
 	fmt.Printf("Bucket:     %s\n", cfg.Qiniu.Bucket)
 	fmt.Printf("Domain:     %s\n", cfg.Qiniu.Domain)
-	fmt.Printf("PathPrefix: %s\n", cfg.Qiniu.PathPrefix)
+	if cfg.Qiniu.PathPrefix != "" {
+		fmt.Printf("PathPrefix: %s\n", cfg.Qiniu.PathPrefix)
+	}
 	fmt.Printf("UseHTTPS:   %t\n", cfg.Qiniu.UseHTTPS)
 	fmt.Printf("Private:    %t\n", cfg.Qiniu.Private)
 	fmt.Println()
