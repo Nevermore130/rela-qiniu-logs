@@ -3,9 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
 
-	"github.com/spf13/cobra"
 	"github.com/rela/qiniu-logs/internal/config"
+	"github.com/spf13/cobra"
 )
 
 var configCmd = &cobra.Command{
@@ -42,6 +43,22 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	fmt.Printf("PathPrefix: %s\n", cfg.Qiniu.PathPrefix)
 	fmt.Printf("UseHTTPS:   %t\n", cfg.Qiniu.UseHTTPS)
 	fmt.Printf("Private:    %t\n", cfg.Qiniu.Private)
+	fmt.Println()
+	fmt.Printf("默认项目: %s\n", cfg.Qiniu.DefaultProject)
+	fmt.Println("项目:")
+	names := make([]string, 0, len(cfg.Qiniu.Projects))
+	for n := range cfg.Qiniu.Projects {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		p := cfg.Qiniu.Projects[n]
+		ts := p.TimeSource
+		if ts == "" {
+			ts = "put_time"
+		}
+		fmt.Printf("  %-16s prefix=%s  time=%s\n", n, p.Prefix, ts)
+	}
 
 	return nil
 }
