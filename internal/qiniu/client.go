@@ -30,7 +30,7 @@ type FileInfo struct {
 }
 
 // ListOptions 控制 ListFiles 的过滤与上限。
-// From / To 为零值表示不限边界；服务端不支持时间过滤，由 ListFiles 在客户端按 PutTime 过滤。
+// From / To 为零值表示不限边界；服务端不支持时间过滤，由 ListFiles 在客户端按 LogTime 过滤。
 type ListOptions struct {
 	Limit int
 	From  time.Time
@@ -50,9 +50,10 @@ type rawEntry struct {
 }
 
 // selectFiles applies the time window + limit to already-listed entries.
+// Precondition: resolve != nil.
 // Unresolved time is excluded when a time filter is active, and included
 // (LogTime falling back to PutTime) when there is no filter.
-func selectFiles(entries []rawEntry, resolve TimeResolver, opts ListOptions) ([]FileInfo, error) {
+func selectFiles(entries []rawEntry, resolve TimeResolver, opts ListOptions) []FileInfo {
 	hasFilter := !opts.From.IsZero() || !opts.To.IsZero()
 	var out []FileInfo
 	for _, e := range entries {
@@ -79,10 +80,10 @@ func selectFiles(entries []rawEntry, resolve TimeResolver, opts ListOptions) ([]
 			Hash:     e.Hash,
 		})
 		if opts.Limit > 0 && len(out) >= opts.Limit {
-			return out, nil
+			return out
 		}
 	}
-	return out, nil
+	return out
 }
 
 func NewClient(cfg *config.QiniuConfig) *Client {
@@ -98,10 +99,12 @@ func NewClient(cfg *config.QiniuConfig) *Client {
 	}
 }
 
+// resolve must be non-nil; it maps each key+PutTime to its logical time.
 func (c *Client) ListFiles(ctx context.Context, prefix string, resolve TimeResolver, opts ListOptions) ([]FileInfo, error) {
 	hasFilter := !opts.From.IsZero() || !opts.To.IsZero()
 
 	var raw []rawEntry
+	var result []FileInfo
 	marker := ""
 	batchLimit := 100
 	if opts.Limit > 0 && opts.Limit < batchLimit && !hasFilter {
@@ -130,7 +133,8 @@ func (c *Client) ListFiles(ctx context.Context, prefix string, resolve TimeResol
 			})
 		}
 
-		if opts.Limit > 0 && !hasFilter && len(raw) >= opts.Limit {
+		result = selectFiles(raw, resolve, opts)
+		if opts.Limit > 0 && len(result) >= opts.Limit {
 			break
 		}
 		if !hasNext {
@@ -139,7 +143,7 @@ func (c *Client) ListFiles(ctx context.Context, prefix string, resolve TimeResol
 		marker = nextMarker
 	}
 
-	return selectFiles(raw, resolve, opts)
+	return result, nil
 }
 
 // GetPublicURL returns the unsigned `scheme://domain/key` URL.
